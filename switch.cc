@@ -35,6 +35,7 @@ void error(string s){
 struct Config{
     string destip;
     short destport; 
+    short listenport;
 };
 
 struct Packet{
@@ -45,8 +46,9 @@ Config read_config(const char * file){
     ifstream in(file);
     Config cfg ; 
     if(in.good()){
-        in >> cfg.destport;     
+        in >> cfg.listenport;
         in >> cfg.destip;
+        in >> cfg.destport;     
     }else 
         throw exception();
 
@@ -59,29 +61,45 @@ int main(int argc, char ** argv)
         cout << "No configuration file speficied" << endl;
         exit(1);
     }
-    int serversock,clientsock;    
-    serversock = socket(AF_INET,SOCK_STREAM,0);
+
+    int sock,clientsock;
+    //serversock is the socket of the step switch's communication socket
+    int serversock = socket(AF_INET,SOCK_STREAM,0);    
     if(serversock == -1)
+        error("socket creation error");
+    sock = socket(AF_INET,SOCK_STREAM,0);
+    if(sock == -1)
         error("socket creation failed");
+  
     Config cfg = read_config(argv[1]);
-    struct sockaddr_in serveraddr,clientaddr;
+    struct sockaddr_in addr,clientaddr,serveraddr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(cfg.listenport);
     serveraddr.sin_family = AF_INET;
-    //serveraddr.sin_addr.s_addr = inet_addr(cfg.destip.c_str());
-    serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serveraddr.sin_port = htons(cfg.destport);
-    cout <<cfg.destip << " " << cfg.destport << endl;
-    int serverlen = sizeof(serveraddr);
-    int res = bind(serversock,(sockaddr*)&serveraddr,serverlen);
+    serveraddr.sin_addr.s_addr = inet_addr(cfg.destip.c_str());
+    serveraddr.sin_port = htons(cfg.destport); 
+    cout <<cfg.destip << " " << cfg.listenport << endl;
+
+    int serverlen = sizeof(addr);
+    int res = bind(sock,(sockaddr*)&addr,serverlen);
     if(res == -1)
         error("bind error");
-    res = listen(serversock,MAX_LISTEN);
+
+    res = listen(sock,MAX_LISTEN);
     if(res == -1)
         error("listen error");
+    
+    res = connect(serversock,(sockaddr*)&serveraddr,sizeof(serveraddr));
+    if(res == -1)
+        error("can not connect to server");
+
     while(true){
         socklen_t clientlen = sizeof(clientaddr);
-        clientsock = accept(serversock,(sockaddr*)&clientaddr,&clientlen);     
+        clientsock = accept(sock,(sockaddr*)&clientaddr,&clientlen);     
         Packet p; 
         read(clientsock,&p,sizeof(p));
+        write(serversock,&p,sizeof(p));
         cout << "a apcket read from client with data : " << p.data << endl;
         close(clientsock);
     }
