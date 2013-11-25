@@ -6,7 +6,7 @@ run-source:compile-source
 	./source source.cfg
 compile-source:
 	g++ -Wall -g source.cc -o source
-run-mockdest:compile-mockdest
-	./mockdest
-compile-mockdest:
-	g++ -Wall -g mockdest.cc -o mockdest
+run-dest:compile-dest
+	./dest  dest.cfg
+compile-dest:
+	g++ -Wall -g dest.cc -o dest
